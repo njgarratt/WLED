@@ -20,6 +20,11 @@ private:
     // on and off presets
   uint8_t m_onPreset = 0;
   uint8_t m_offPreset = 0;
+
+  // pins
+  int8_t SWpin = -1;
+  int8_t CLKpin = -1;
+  int8_t DTpin = -1;
   
 
 
@@ -36,7 +41,6 @@ private:
   unsigned char Enc_A_prev = 0;
 
   // private class members configurable by Usermod Settings (defaults set inside readFromConfig())
-  int8_t pins[3]; // pins[0] = DT from encoder, pins[1] = SW from encoder, pins[2] = CLK from encoder (optional)
   int fadeAmount; // how many points to fade the Neopixel with each step
   unsigned int clicktime; // how many ms is a click less than. longer is ignored.
 
@@ -50,9 +54,9 @@ public:
   void setup()
   {
     //Serial.println("Hello from my usermod!");
-    pinMode(pins[0], INPUT_PULLUP);
-    pinMode(pins[1], INPUT_PULLUP);
-    if(pins[2] >= 0) pinMode(pins[2], INPUT_PULLUP);
+    pinMode(DTpin, INPUT_PULLUP);
+    pinMode(CLKpin, INPUT_PULLUP);
+    if(SWpin >= 0) pinMode(SWpin, INPUT_PULLUP);
     currentTime = millis();
     loopTime = currentTime;
   }
@@ -98,8 +102,8 @@ public:
       * hold and rotate - cycle presets
       * rotate - brightness
       */
-      if(pins[2] >= 0) {
-        button_state = digitalRead(pins[2]);
+      if(SWpin >= 0) {
+        button_state = digitalRead(SWpin);
         if (button_state == LOW)
         {
           buttonIsPressed = true;
@@ -137,8 +141,9 @@ public:
           prev_button_state = button_state;
         }
       }
-      int Enc_A = digitalRead(pins[0]); // Read encoder pins
-      int Enc_B = digitalRead(pins[1]);
+      // Read encoder pins
+      int Enc_A = digitalRead(DTpin); 
+      int Enc_B = digitalRead(CLKpin);
       if ((!Enc_A) && (Enc_A_prev))
       { // A has gone from high to low
         if (Enc_B == HIGH)
@@ -192,13 +197,12 @@ public:
 
   void addToConfig(JsonObject& root)
   {
-    JsonObject top = root.createNestedObject("rotEncBrightness");
+    JsonObject top = root.createNestedObject("RotaryEncoderPowerBrightnessPresets");
     top["fadeAmount"] = fadeAmount;
-    top["clickms"]  = clicktime;
-    JsonArray pinArray = top.createNestedArray("pin");
-    pinArray.add(pins[0]);
-    pinArray.add(pins[1]); 
-    pinArray.add(pins[2]); 
+    top["clickMs"]  = clicktime;
+    top["SWpin"] = SWpin;
+    top["CLKpin"] = CLKpin;
+    top["DTpin"] = DTpin;
   }
 
   /* 
@@ -218,18 +222,18 @@ public:
     // set defaults here, they will be set before setup() is called, and if any values parsed from ArduinoJson below are missing, the default will be used instead
     fadeAmount = 5;
     clicktime = 250;
-    pins[0] = -1;
-    pins[1] = -1;
-    pins[2] = -1;
+    SWpin = -1;
+    CLKpin = -1;
+    DTpin = -1;
 
-    JsonObject top = root["rotEncBrightness"];
+    JsonObject top = root["RotaryEncoderPowerBrightnessPresets"];
 
     bool configComplete = !top.isNull();
     configComplete &= getJsonValue(top["fadeAmount"], fadeAmount);
-    configComplete &= getJsonValue(top["clicktime"], clicktime);
-    configComplete &= getJsonValue(top["pin"][0], pins[0]);
-    configComplete &= getJsonValue(top["pin"][1], pins[1]);
-    configComplete &= getJsonValue(top["pin"][2], pins[2]);
+    configComplete &= getJsonValue(top["clickMs"], clicktime);
+    configComplete &= getJsonValue(top["SWpin"], SWpin);
+    configComplete &= getJsonValue(top["DTpin"], DTpin);
+    configComplete &= getJsonValue(top["CLKpin"], CLKpin);
 
     return configComplete;
   }
