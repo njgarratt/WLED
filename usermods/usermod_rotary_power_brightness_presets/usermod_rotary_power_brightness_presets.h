@@ -25,20 +25,27 @@ private:
   int8_t SWpin = -1;
   int8_t CLKpin = -1;
   int8_t DTpin = -1;
+  bool bInvert = false;
   
+  // reading
+  int Enc_A;
+  int Enc_B;
+  int Enc_A_prev = 0;
 
 
 
-  unsigned char select_state = 0; // 0 = brightness 1 = color
+  unsigned char toggle_state = 0; // 0 = brightness 1 = color
   unsigned char button_state = HIGH;
   unsigned char prev_button_state = HIGH;
   CRGB fastled_col;
   CHSV prim_hsv;
   int16_t new_val;
 
+/*
   unsigned char Enc_A;
   unsigned char Enc_B;
   unsigned char Enc_A_prev = 0;
+*/
 
   // private class members configurable by Usermod Settings (defaults set inside readFromConfig())
   int fadeAmount; // how many points to fade the Neopixel with each step
@@ -99,7 +106,7 @@ public:
     {
       /* we have a button defined
       * single click - cycle power
-      * hold and rotate - cycle presets
+      * hold down and rotate - cycle presets
       * rotate - brightness
       */
       if(SWpin >= 0) {
@@ -123,17 +130,20 @@ public:
           else
           {
             Serial.println("button HIGH");
-            // declick action
+            /*
+            * declick action
+            * toggle power for a click, but not for a hold
+            */
             if ((currentTime - statesettime) <= clicktime)
             {
-              if (select_state == 1)
+              if (toggle_state == 1)
               {
-                select_state = 0;
+                toggle_state = 0;
                 switchStrip(false);
               }
               else
               {
-                select_state = 1;
+                toggle_state = 1;
                 switchStrip(true);
               } 
             }
@@ -142,28 +152,43 @@ public:
         }
       }
       // Read encoder pins
-      int Enc_A = digitalRead(DTpin); 
-      int Enc_B = digitalRead(CLKpin);
+      if (!bInvert)
+      {
+        Enc_A = digitalRead(DTpin); 
+        Enc_B = digitalRead(CLKpin);
+      } else
+      {
+        Enc_A = digitalRead(CLKpin); 
+        Enc_B = digitalRead(DTpin);
+      }
       if ((!Enc_A) && (Enc_A_prev))
       { // A has gone from high to low
         if (Enc_B == HIGH)
         { // B is high so clockwise
           if (!buttonIsPressed)
           {
+            // increase the brightness, dont go over 255!
             if (bri + fadeAmount <= 255)
-              bri += fadeAmount; // increase the brightness, dont go over 255
+            {
+              bri += fadeAmount;
+            } else
+            {
+              // account for increments which are not factors of 255
+              bri = 255;
+            }
           }
           else
           {
-            // bool applyPreset(byte index, bool loadBri)
             preset_no = preset_no + 1;
             
+            // if this preset application fails, we have run out of presets. go back to the first.
             if (!applyPreset(preset_no))
             {
               preset_no = 1;
               applyPreset(preset_no);
             } else if (preset_no > preset_max)
             { 
+              // capture the largest preset we have successfully applied
               preset_max = preset_no;
             }
           }
@@ -172,14 +197,22 @@ public:
         { // B is low so counter-clockwise
           if (!buttonIsPressed)
           {
+            // decrease the brightness, dont go below 0!
             if (bri - fadeAmount >= 0)
-              bri -= fadeAmount; // decrease the brightness, dont go below 0
+            {
+              bri -= fadeAmount;
+            } else
+            {
+              // account for increments which are not factors of 255
+              bri = 0;
+            }
           }
           else
           {
             preset_no = preset_no - 1;
             if (preset_no <= 0)
             {
+              // loop around to the highest preset number we have previously seen
               preset_no = preset_max;
             }
             applyPreset(preset_no);
@@ -197,12 +230,13 @@ public:
 
   void addToConfig(JsonObject& root)
   {
-    JsonObject top = root.createNestedObject("RotaryEncoderPowerBrightnessPresets");
+    JsonObject top = root.createNestedObject("RotaryEncoder Power Brightness Presets");
     top["fadeAmount"] = fadeAmount;
     top["clickMs"]  = clicktime;
     top["SWpin"] = SWpin;
     top["CLKpin"] = CLKpin;
     top["DTpin"] = DTpin;
+    top["Invert"] = bInvert;
   }
 
   /* 
@@ -225,8 +259,9 @@ public:
     SWpin = -1;
     CLKpin = -1;
     DTpin = -1;
+    bInvert = false;
 
-    JsonObject top = root["RotaryEncoderPowerBrightnessPresets"];
+    JsonObject top = root["RotaryEncoder Power Brightness Presets"];
 
     bool configComplete = !top.isNull();
     configComplete &= getJsonValue(top["fadeAmount"], fadeAmount);
@@ -234,6 +269,7 @@ public:
     configComplete &= getJsonValue(top["SWpin"], SWpin);
     configComplete &= getJsonValue(top["DTpin"], DTpin);
     configComplete &= getJsonValue(top["CLKpin"], CLKpin);
+    configComplete &= getJsonValue(top["Invert"], bInvert);
 
     return configComplete;
   }
