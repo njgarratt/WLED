@@ -32,6 +32,9 @@ private:
   int Enc_B;
   int Enc_A_prev = 0;
 
+  // dummy
+  String tmpname;
+
 
 
   unsigned char toggle_state = 0; // 0 = brightness 1 = color
@@ -181,15 +184,19 @@ public:
           {
             preset_no = preset_no + 1;
             
-            // if this preset application fails, we have run out of presets. go back to the first.
-            if (!applyPreset(preset_no))
+            // if this preset name query fails, we have run out of presets. go back to the first.
+            if (!getPresetName(preset_no, tmpname))
             {
               preset_no = 1;
               applyPreset(preset_no);
-            } else if (preset_no > preset_max)
+            } else 
             { 
-              // capture the largest preset we have successfully applied
-              preset_max = preset_no;
+              applyPreset(preset_no);
+              if (preset_no > preset_max)
+              {
+                // capture the largest preset we have successfully applied
+                preset_max = preset_no;
+              }
             }
           }
         }
