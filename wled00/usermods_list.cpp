@@ -106,7 +106,7 @@
 #endif
 
 #ifdef USERMOD_ROTARY_ENCODER_POWER_BRIGHTNESS_PRESETS
-#include "../usermods/usermod_rotary_power_brightness_presets/usermod_rotary_power_brightness_presets.h"
+  #include "../usermods/usermod_rotary_power_brightness_presets/usermod_rotary_power_brightness_presets.h"
 #endif
 
 #ifdef RGB_ROTARY_ENCODER
@@ -296,9 +296,9 @@ void registerUsermods()
   usermods.add(new RotaryEncoderBrightnessColor());
   #endif
 
-#ifdef USERMOD_ROTARY_ENCODER_POWER_BRIGHTNESS_PRESETS
-usermods.add(new RotaryEncoderPowerBrightnessPresets());
-#endif
+  #ifdef USERMOD_ROTARY_ENCODER_POWER_BRIGHTNESS_PRESETS
+  usermods.add(new RotaryEncoderPowerBrightnessPresets());
+  #endif
 
   #ifdef RGB_ROTARY_ENCODER
   usermods.add(new RgbRotaryEncoderUsermod());

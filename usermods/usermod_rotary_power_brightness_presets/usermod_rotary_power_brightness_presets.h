@@ -14,7 +14,7 @@ private:
   unsigned long currentTime;
   unsigned long loopTime;
   unsigned long statesettime = 0;
-  bool buttonIsPressed;
+  bool buttonIsPressed = false;
   int16_t preset_no = 1;
   int16_t preset_max = 1;
   // on and off presets
@@ -32,22 +32,13 @@ private:
   int Enc_B;
   int Enc_A_prev = 0;
 
-  // dummy
-  String tmpname;
-
   unsigned char button_state = HIGH;
   unsigned char prev_button_state = HIGH;
-
-/*
-  unsigned char Enc_A;
-  unsigned char Enc_B;
-  unsigned char Enc_A_prev = 0;
-*/
 
   // private class members configurable by Usermod Settings (defaults set inside readFromConfig())
   int fadeAmount;      // how many points to fade the Neopixel with each step
   uint8_t minBri;      // minimum brightness when rotating down (0 = allow full off)
-  unsigned int clicktime; // how many ms is a click less than. longer is ignored.
+  unsigned long clicktime; // how many ms is a click less than. longer is ignored.
 
 public:
   //Functions called by WLED
@@ -101,7 +92,7 @@ public:
 
     currentTime = millis(); // get the current elapsed time
 
-    if (currentTime >= (loopTime + 2)) // 2ms since last check of encoder = 500Hz
+    if ((currentTime - loopTime) >= 2) // 2ms since last check of encoder = 500Hz
     {
       /* we have a button defined
       * single click - cycle power
@@ -163,6 +154,7 @@ public:
       if ((!Enc_A) && (Enc_A_prev))
       { // A has gone from high to low
         bool presetChanged = false;
+        String tmpname;
 
         if (Enc_B == HIGH)
         { // B is high so clockwise
@@ -222,11 +214,11 @@ public:
               // loop around to the highest preset number we have previously seen
               preset_no = preset_max;
             }
-            // mirror the forward-direction validity check: skip gaps in preset numbering
-            if (!getPresetName(preset_no, tmpname))
+            // skip gaps in preset numbering; loop to handle multiple consecutive missing presets
+            for (int i = 0; i < preset_max && !getPresetName(preset_no, tmpname); i++)
             {
-              preset_no = preset_no - 1;
-              if (preset_no <= 0) preset_no = preset_max;
+              preset_no--;
+              if (preset_no <= 0) { preset_no = preset_max; break; }
             }
             applyPreset(preset_no);
           }
