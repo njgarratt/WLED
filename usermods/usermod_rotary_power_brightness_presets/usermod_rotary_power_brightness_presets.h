@@ -8,9 +8,6 @@ class RotaryEncoderPowerBrightnessPresets : public Usermod
 {
 private:
   //Private class members. You can declare variables and functions only accessible to your usermod here
-  // notification mode for colorUpdated()
-  const byte NotifyUpdateMode = CALL_MODE_NO_NOTIFY;
-  unsigned long lastTime = 0;
   unsigned long currentTime;
   unsigned long loopTime;
   unsigned long statesettime = 0;
@@ -27,9 +24,7 @@ private:
   int8_t DTpin = -1;
   bool bInvert = false;
 
-  // reading
-  int Enc_A;
-  int Enc_B;
+  // reading; Enc_A/Enc_B are loop-local (no state needed between calls), only Enc_A_prev persists
   int Enc_A_prev = 0;
 
   // scratch buffer for getPresetName() calls; kept as a class member so the String's
@@ -72,12 +67,13 @@ public:
     } else if (!switchOn && m_offPreset) {
       applyPreset(m_offPreset);
     } else if (switchOn && bri == 0) {
-      bri = briLast;
-      colorUpdated(NotifyUpdateMode);
+      // clamp briLast: if it's 0 (e.g. first boot before ever being on) use a safe default
+      bri = briLast > 0 ? briLast : 128;
+      colorUpdated(CALL_MODE_BUTTON);  // notify all clients (web UI, MQTT, etc.)
     } else if (!switchOn && bri != 0) {
       briLast = bri;
       bri = 0;
-      colorUpdated(NotifyUpdateMode);
+      colorUpdated(CALL_MODE_BUTTON);  // notify all clients (web UI, MQTT, etc.)
     }
   }
 
@@ -146,7 +142,8 @@ public:
           prev_button_state = button_state;
         }
       }
-      // Read encoder pins
+      // Read encoder pins; declared local as no state is needed between loop() calls
+      int Enc_A, Enc_B;
       if (!bInvert)
       {
         Enc_A = digitalRead(DTpin);
@@ -177,21 +174,20 @@ public:
           else
           {
             presetChanged = true;
-            preset_no = preset_no + 1;
+            preset_no++;
 
-            // if this preset name query fails, we have run out of presets. go back to the first.
-            if (!getPresetName(preset_no, tmpname))
+            // skip gaps in preset numbering; if we go past preset_max wrap to 1.
+            // bounded by preset_max iterations to prevent an infinite loop if no presets exist.
+            for (int i = 0; i < preset_max && !getPresetName(preset_no, tmpname); i++)
             {
-              preset_no = 1;
-              applyPreset(preset_no);
-            } else
+              preset_no++;
+              if (preset_no > preset_max) { preset_no = 1; break; }
+            }
+            applyPreset(preset_no);
+            if (preset_no > preset_max)
             {
-              applyPreset(preset_no);
-              if (preset_no > preset_max)
-              {
-                // capture the largest preset we have successfully applied
-                preset_max = preset_no;
-              }
+              // capture the largest preset we have successfully applied
+              preset_max = preset_no;
             }
           }
         }
