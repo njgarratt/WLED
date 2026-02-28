@@ -32,6 +32,11 @@ private:
   int Enc_B;
   int Enc_A_prev = 0;
 
+  // scratch buffer for getPresetName() calls; kept as a class member so the String's
+  // internal heap buffer is allocated once and reused, avoiding repeated alloc/free
+  // churn on every encoder pulse while spinning through presets.
+  String tmpname;
+
   unsigned char button_state = HIGH;
   unsigned char prev_button_state = HIGH;
 
@@ -154,7 +159,6 @@ public:
       if ((!Enc_A) && (Enc_A_prev))
       { // A has gone from high to low
         bool presetChanged = false;
-        String tmpname;
 
         if (Enc_B == HIGH)
         { // B is high so clockwise
